@@ -1,0 +1,28 @@
+/* Formularz klienta i katalog modułów. */
+.client-form fieldset { border: 0; padding: 0; margin: 0 0 20px; min-width: 0; }
+.client-form legend { font: 600 1rem var(--f-display); padding: 0; margin-bottom: 8px; }
+.db-row {
+  display: grid; grid-template-columns: 9rem 1fr 1fr auto; gap: 8px; align-items: end;
+  padding: 8px 0; border-bottom: 1px solid var(--line);
+}
+.db-row .field { margin-bottom: 0; }
+.module-list { display: grid; gap: 8px; }
+.module-item { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px; }
+.module-head { font-weight: 500; }
+.module-sub { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 8px 0 2px 24px; }
+.sub-group { display: grid; gap: 4px; align-content: start; }
+.form-actions { margin-top: 12px; }
+@media (max-width: 640px) {
+  .db-row { grid-template-columns: 1fr; }
+  .module-sub { margin-left: 0; }
+}
+
+/* Katalog */
+.catalog-page { max-width: 900px; margin: 0 auto; padding: var(--gap); }
+.cat-module { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px 16px; margin-bottom: 12px; }
+.cat-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+.cat-head h3 { margin: 0; }
+.cat-features { list-style: none; margin: 8px 0; padding: 0; }
+.cat-features li { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.cat-inline { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cat-inline input[type="text"] { flex: 1 1 140px; min-width: 0; }

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Katalog modułów — Mapa Klientów</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/form.css">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true">M</span>
+      <span class="brand-name">Mapa Klientów</span>
+    </a>
+    <nav class="app-nav" id="nav" hidden>
+      <a href="/">Klienci</a>
+      <div id="user-button" aria-label="Konto użytkownika"></div>
+    </nav>
+  </header>
+
+  <div id="status" class="loading" role="status">Ładowanie…</div>
+  <main id="app" class="catalog-page" hidden></main>
+
+  <script type="module">
+    import { initClerk, getUser, URLS } from '/js/app-init.js';
+
+    const status = document.getElementById('status');
+
+    function showMessage(text, kind) {
+      status.hidden = false;
+      status.className = 'container';
+      status.innerHTML = '';
+      const box = document.createElement('div');
+      box.className = `alert ${kind}`;
+      box.setAttribute('role', 'alert');
+      box.textContent = text;
+      status.append(box);
+      return status;
+    }
+
+    try {
+      const clerk = await initClerk();
+      const user = getUser();
+      if (!user) {
+        location.replace(URLS.home);
+      } else {
+        document.getElementById('nav').hidden = false;
+        clerk.mountUserButton(document.getElementById('user-button'), { afterSignOutUrl: URLS.home });
+        if (!user.isAdmin) {
+          const el = showMessage('Brak dostępu. Katalog modułów jest dostępny tylko dla administratora.', 'alert-error');
+          const back = document.createElement('a');
+          back.href = '/';
+          back.textContent = 'Wróć do listy klientów';
+          el.append(back);
+        } else {
+          status.hidden = true;
+          const app = document.getElementById('app');
+          app.hidden = false;
+          const { mountCatalog } = await import('/js/catalog.js');
+          await mountCatalog(app);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      showMessage(err.message || 'Nie udało się uruchomić strony.', 'alert-error');
+    }
+  </script>
+</body>
+</html>
