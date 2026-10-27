@@ -1,0 +1,8 @@
+/* Panel „Zapytaj AI” */
+.ai-history { display: grid; gap: 12px; max-height: 360px; overflow: auto; margin-bottom: 12px; }
+.ai-entry { display: grid; gap: 6px; }
+.ai-q, .ai-a { margin: 0; padding: 8px 10px; border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.ai-q { background: var(--accent-soft); font-weight: 500; }
+.ai-a { background: var(--bg); border: 1px solid var(--line); white-space: pre-wrap; }
+.ai-counter { font-size: .85rem; margin-left: auto; }
+.ai-note { font-size: .85rem; margin: 8px 0 0; }
