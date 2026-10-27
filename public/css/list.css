@@ -1,0 +1,17 @@
+/* Lista klientów i preferencje */
+.client-list h2 { margin: 0; }
+.client-list input[type="search"] { margin: 10px 0 8px; }
+.client-list .list-item { padding: 4px 6px; }
+.list-open {
+  flex: 1; min-width: 0; display: grid; gap: 4px; text-align: left;
+  border: 0; background: none; color: var(--ink); font: inherit; cursor: pointer; padding: 4px;
+}
+.list-name { font-weight: 600; overflow-wrap: anywhere; }
+.client-list .placeholder { padding: 16px 8px; }
+
+.prefs { display: flex; align-items: center; gap: 8px; }
+.prefs-msg { color: var(--danger); }
+.prefs-msg:empty { display: none; }
+@media (max-width: 600px) {
+  .prefs .check span { max-width: 9em; line-height: 1.2; }
+}
