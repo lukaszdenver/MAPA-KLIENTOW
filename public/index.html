@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mapa Klientów</title>
+  <meta name="description" content="Kto ma jakie moduły, bazy danych i funkcje płatne.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true">M</span>
+      <span class="brand-name">Mapa Klientów</span>
+    </a>
+    <nav class="app-nav" id="nav" hidden>
+      <a href="/katalog.html" id="nav-catalog" hidden>Katalog</a>
+      <div id="prefs"></div>
+      <div id="user-button" aria-label="Konto użytkownika"></div>
+    </nav>
+  </header>
+
+  <div id="status" class="loading" role="status">Ładowanie…</div>
+
+  <!-- Niezalogowany: logowanie albo prośba o konto (Clerk Waitlist) -->
+  <section id="auth" class="auth" hidden>
+    <h1>Mapa Klientów</h1>
+    <p class="auth-lead" id="auth-lead">Zaloguj się, aby zobaczyć, kto ma jakie moduły, bazy danych i funkcje płatne.</p>
+    <div id="auth-widget" class="auth-widget"></div>
+    <div class="auth-switch">
+      <span class="muted" id="auth-switch-text">Nie masz konta?</span>
+      <button type="button" class="btn" id="auth-switch">Poproś o konto</button>
+    </div>
+  </section>
+
+  <!-- Zalogowany: lista po lewej, karta po prawej, panel AI pod kartą -->
+  <main id="app" class="container" hidden>
+    <div class="layout">
+      <section id="list" class="panel" aria-label="Lista klientów"></section>
+      <section id="card" class="panel" aria-label="Karta klienta"></section>
+      <section id="ai" class="panel" aria-label="Zapytaj AI"></section>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initClerk, getUser, URLS } from '/js/app-init.js';
+
+    const $ = (id) => document.getElementById(id);
+    const status = $('status');
+
+    function showError(message) {
+      status.hidden = false;
+      status.className = 'container';
+      status.innerHTML = '';
+      const box = document.createElement('div');
+      box.className = 'alert alert-error';
+      box.setAttribute('role', 'alert');
+      box.textContent = message;
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'btn';
+      retry.textContent = 'Spróbuj ponownie';
+      retry.addEventListener('click', () => location.reload());
+      status.append(box, retry);
+    }
+
+    /** Dynamiczny import modułu z Task 5–7; brak pliku nie wywraca strony. */
+    async function loadModule(path) {
+      try {
+        return await import(path);
+      } catch (err) {
+        console.info(`Moduł ${path} niedostępny:`, err?.message ?? err);
+        return null;
+      }
+    }
+
+    function placeholder(el, text) {
+      if (!el.childElementCount) el.innerHTML = `<p class="placeholder">${text}</p>`;
+    }
+
+    // ---------- Niezalogowany ----------
+    function showAuth(clerk) {
+      $('auth').hidden = false;
+      const widget = $('auth-widget');
+      const switchBtn = $('auth-switch');
+      const switchText = $('auth-switch-text');
+      const lead = $('auth-lead');
+      let mode = null;
+
+      function setMode(next) {
+        if (mode === 'signin') clerk.unmountSignIn(widget);
+        if (mode === 'waitlist') clerk.unmountWaitlist(widget);
+        mode = next;
+        if (mode === 'waitlist') {
+          clerk.mountWaitlist(widget, { afterJoinWaitlistUrl: URLS.home, signInUrl: URLS.home });
+          lead.textContent = 'Podaj e-mail — administrator zatwierdzi prośbę, a zaproszenie przyjdzie na skrzynkę.';
+          switchText.textContent = 'Masz już konto?';
+          switchBtn.textContent = 'Zaloguj się';
+        } else {
+          clerk.mountSignIn(widget, { signUpUrl: URLS.signUp, waitlistUrl: URLS.waitlist, forceRedirectUrl: URLS.home });
+          lead.textContent = 'Zaloguj się, aby zobaczyć, kto ma jakie moduły, bazy danych i funkcje płatne.';
+          switchText.textContent = 'Nie masz konta?';
+          switchBtn.textContent = 'Poproś o konto';
+        }
+      }
+
+      switchBtn.addEventListener('click', () => setMode(mode === 'waitlist' ? 'signin' : 'waitlist'));
+      const wantsWaitlist = new URLSearchParams(location.search).has('konto');
+      setMode(wantsWaitlist ? 'waitlist' : 'signin');
+    }
+
+    // ---------- Zalogowany ----------
+    async function showApp(clerk) {
+      const user = getUser();
+      $('nav').hidden = false;
+      $('nav-catalog').hidden = !user.isAdmin;
+      clerk.mountUserButton($('user-button'), { afterSignOutUrl: URLS.home });
+      $('app').hidden = false;
+
+      // Rekord preferencji (e-mail do powiadomień) przy pierwszym logowaniu.
+      const db = await loadModule('/js/db.js');
+      db?.ensurePrefs(user.email).catch((err) => console.warn(err.message));
+
+      const [listMod, cardMod, aiMod, prefsMod] = await Promise.all([
+        loadModule('/js/list.js'),
+        loadModule('/js/card.js'),
+        loadModule('/js/ai.js'),
+        loadModule('/js/prefs.js'),
+      ]);
+
+      // mountCard(el) → { showClient(id) }; mountList(el, { onSelect }); mountAi(el); mountPrefs(el).
+      const cardEl = $('card');
+      const card = await safeMount(cardEl, () => cardMod?.mountCard?.(cardEl));
+      if (!card) placeholder(cardEl, 'Wybierz klienta z listy.');
+
+      const listEl = $('list');
+      await safeMount(listEl, () => listMod?.mountList?.(listEl, { onSelect: (id) => card?.showClient?.(id) }));
+      if (!listMod?.mountList) placeholder(listEl, 'Lista klientów będzie dostępna wkrótce.');
+
+      const aiEl = $('ai');
+      if (aiMod?.mountAi) await safeMount(aiEl, () => aiMod.mountAi(aiEl));
+      else aiEl.hidden = true;
+
+      const prefsEl = $('prefs');
+      await safeMount(prefsEl, () => prefsMod?.mountPrefs?.(prefsEl));
+    }
+
+    /** Błąd jednego modułu pokazuje komunikat w jego kontenerze, reszta strony działa. */
+    async function safeMount(el, fn) {
+      try {
+        return (await fn()) ?? null;
+      } catch (err) {
+        console.error(err);
+        el.innerHTML = '';
+        const box = document.createElement('div');
+        box.className = 'alert alert-error';
+        box.setAttribute('role', 'alert');
+        box.textContent = err?.message || 'Nie udało się wczytać tej części strony.';
+        el.append(box);
+        return null;
+      }
+    }
+
+    try {
+      const clerk = await initClerk();
+      status.hidden = true;
+      if (clerk.user) await showApp(clerk);
+      else showAuth(clerk);
+      // Zmiana sesji (zalogowanie / wylogowanie w innej karcie) → odśwież widok.
+      let signedIn = Boolean(clerk.user);
+      clerk.addListener(({ user }) => {
+        if (Boolean(user) !== signedIn) location.reload();
+        signedIn = Boolean(user);
+      });
+    } catch (err) {
+      console.error(err);
+      showError(err.message || 'Nie udało się uruchomić aplikacji.');
+    }
+  </script>
+</body>
+</html>
