@@ -79,6 +79,27 @@ test('filterClients: słowa w dowolnej kolejności w obrębie jednego pola („d
   assert.deepEqual(names(filterClients(fixtures, '19c oracle')), ['Miasto Łódź Demo', 'Powiat Zeta']);
 });
 
+test('filterClients: zapytania mieszane — „łódź plz” i „plz oracle 19c”', () => {
+  const mixed = {
+    id: 14, name: 'Gmina Mieszana', notes: '',
+    databases: [
+      { id: 140, engine: 'oracle', version: '12c', label: null },
+      { id: 141, engine: 'postgres', version: '19c', label: null },
+    ],
+    modules: [{ id: 1400, module: PLZ, database_ids: [140], features: [] }],
+  };
+  const all = [...fixtures, mixed];
+  assert.deepEqual(names(filterClients(all, 'łódź plz')), ['Miasto Łódź Demo']);
+  assert.deepEqual(names(filterClients(all, 'plz oracle 19c')), ['Miasto Łódź Demo', 'Powiat Zeta']);
+  assert.deepEqual(names(filterClients(all, 'oracle 19c')), ['Miasto Łódź Demo', 'Powiat Zeta']);
+});
+
+test('filterClients: klient bez baz nadal znajdowany po nazwie/module', () => {
+  const noDb = { id: 15, name: 'Urząd Bez Baz', notes: '', databases: [], modules: [{ id: 1500, module: KP, database_ids: [], features: [] }] };
+  assert.deepEqual(names(filterClients([noDb], 'urząd kp')), ['Urząd Bez Baz']);
+  assert.deepEqual(names(filterClients([noDb], 'oracle')), []);
+});
+
 test('filterClients: kod i nazwa modułu to jedno pole („plz budżet”)', () => {
   assert.deepEqual(names(filterClients(fixtures, 'plz budżet')), ['Miasto Łódź Demo', 'Powiat Zeta']);
 });
