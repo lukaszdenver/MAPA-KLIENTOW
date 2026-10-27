@@ -1,5 +1,5 @@
 -- Mapa Klientów — schemat bazy (Supabase / Postgres 15+).
--- Kolejność wczytania: schema.sql -> rls.sql -> seed.sql
+-- Kolejność wczytania: schema.sql -> rls.sql -> save_client.sql -> seed.sql
 
 create table clients (
   id         bigint generated always as identity primary key,

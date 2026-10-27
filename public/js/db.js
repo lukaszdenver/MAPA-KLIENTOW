@@ -150,11 +150,14 @@ export async function deleteFeature(id) {
 
 // ---------- Preferencje i ulubieni (tylko własne wiersze — RLS po sub) ----------
 
-/** Tworzy rekord user_prefs przy pierwszym logowaniu (nie nadpisuje istniejącego). */
+/**
+ * Tworzy rekord user_prefs przy pierwszym logowaniu i odświeża e-mail (RLS wymaga zgodności z JWT).
+ * Wysyłamy tylko clerk_user_id + email, więc notify_changes / last_client_id pozostają nietknięte.
+ */
 export async function ensurePrefs(email) {
   await run(
     getSupabase().from('user_prefs')
-      .upsert({ clerk_user_id: userId(), email }, { onConflict: 'clerk_user_id', ignoreDuplicates: true }),
+      .upsert({ clerk_user_id: userId(), email }, { onConflict: 'clerk_user_id' }),
     'Nie udało się zapisać ustawień użytkownika',
   );
 }
@@ -169,15 +172,15 @@ export async function getPrefs() {
 }
 
 export async function setNotify(on) {
-  await run(
-    getSupabase().from('user_prefs').update({ notify_changes: Boolean(on) }).eq('clerk_user_id', userId()),
+  await runOne(
+    getSupabase().from('user_prefs').update({ notify_changes: Boolean(on) }).eq('clerk_user_id', userId()).select('clerk_user_id'),
     'Nie udało się zmienić ustawienia powiadomień',
   );
 }
 
 export async function setLastClient(id) {
-  await run(
-    getSupabase().from('user_prefs').update({ last_client_id: id ?? null }).eq('clerk_user_id', userId()),
+  await runOne(
+    getSupabase().from('user_prefs').update({ last_client_id: id ?? null }).eq('clerk_user_id', userId()).select('clerk_user_id'),
     'Nie udało się zapamiętać ostatniego klienta',
   );
 }

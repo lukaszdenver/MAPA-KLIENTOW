@@ -177,36 +177,43 @@ export async function openClientForm(el, clientId, onSaved, onCancel) {
     render();
 
     let id;
-    let after;
     let before;
     try {
       before = clientId ? await getClient(clientId) : null;
       id = await saveClient(toPayload(state));
-      after = await getClient(id);
     } catch (err) {
       busy = false;
       messages = [{ kind: 'error', text: err.message || 'Nie udało się zapisać klienta.' }];
       render();
       return;
     }
+    // Klient jest już zapisany — zapamiętaj id, żeby ponowna próba nie utworzyła duplikatu.
+    state.id = id;
+    clientId = id;
 
     // before == null → nowy klient (event 'created').
-    const { event, sections } = changedSections(before, after);
-    let notifyFailed = false;
-    if (event === 'created' || sections.length) {
-      try {
-        await authFetch('/api/notify', { clientId: id, event, sections });
-      } catch (err) {
-        console.warn('notify:', err.message);
-        notifyFailed = true;
+    let problem = '';
+    try {
+      const after = await getClient(id);
+      const { event, sections } = changedSections(before, after);
+      if (event === 'created' || sections.length) {
+        try {
+          await authFetch('/api/notify', { clientId: id, event, sections });
+        } catch (err) {
+          console.warn('notify:', err.message);
+          problem = 'Zapisano, ale nie udało się wysłać e-maila.';
+        }
       }
+    } catch (err) {
+      console.warn('po zapisie:', err.message);
+      problem = `Zapisano, ale nie udało się odczytać zapisanych danych (${err.message || 'błąd'}). E-mail z powiadomieniem mógł nie zostać wysłany.`;
     }
     busy = false;
-    if (notifyFailed) {
+    if (problem) {
       // Pokaż komunikat i dopiero po kliknięciu przejdź dalej — inaczej onSaved przerysuje kartę i komunikat zniknie.
       el.innerHTML = '';
       el.append(
-        h('div', { class: 'alert alert-error', role: 'alert' }, 'Zapisano, ale nie udało się wysłać e-maila.'),
+        h('div', { class: 'alert alert-error', role: 'alert' }, problem),
         h('button', { type: 'button', class: 'btn btn-primary', onClick: () => onSaved(id) }, 'OK'),
       );
       return;

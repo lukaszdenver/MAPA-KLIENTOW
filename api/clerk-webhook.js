@@ -13,13 +13,15 @@ async function readRawBody(req) {
 }
 
 export default async function handler(req, res) {
+  const secret = process.env.CLERK_WEBHOOK_SECRET;
+  if (!secret) return sendError(res, new HttpError(500, 'Brak konfiguracji webhooka'));
   try {
     if (req.method !== 'POST') throw new HttpError(405, 'Metoda niedozwolona');
     const raw = await readRawBody(req);
 
     let event;
     try {
-      event = new Webhook(process.env.CLERK_WEBHOOK_SECRET).verify(raw, {
+      event = new Webhook(secret).verify(raw, {
         'svix-id': req.headers['svix-id'],
         'svix-timestamp': req.headers['svix-timestamp'],
         'svix-signature': req.headers['svix-signature'],
@@ -29,6 +31,10 @@ export default async function handler(req, res) {
     }
 
     if (event.type === 'waitlistEntry.created') {
+      if (!process.env.ADMIN_EMAIL) {
+        console.warn('clerk-webhook: brak ADMIN_EMAIL — pomijam wysyłkę e-maila.');
+        return res.status(200).json({ ok: true });
+      }
       const email = event.data?.email_address ?? 'nieznany';
       const { subject, text } = buildWaitlistEmail({ email });
       await sendMail({ to: [process.env.ADMIN_EMAIL], subject, text });

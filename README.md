@@ -147,7 +147,7 @@ Nie ustawiaj mu `publicMetadata.role`.
 - [ ] Akceptacja wpisu w Clerk → link z zaproszenia otwiera `rejestracja.html` → rejestracja kończy się zalogowaniem.
 - [ ] Admin widzi „Edytuj" i katalog; zapis klienta / zmiana wersji bazy → e-mail do użytkowników z włączonymi powiadomieniami.
 - [ ] Podgląd **nie widzi** „Edytuj" ani katalogu.
-- [ ] Podgląd, w konsoli przeglądarki: `getSupabase().from('clients').insert({name:'X'})` zwraca **błąd** (RLS).
+- [ ] Podgląd, w konsoli DevTools (moduły ES nie są globalne): `const { getSupabase } = await import('/js/app-init.js'); await getSupabase().from('clients').insert({ name: 'X' })` zwraca **błąd** RLS (`error` w odpowiedzi).
 - [ ] „Zapytaj AI", np. „którzy klienci mają Oracle i moduł PLZ?" → poprawna odpowiedź po polsku.
 - [ ] Ulubione (gwiazdka) i przełącznik e-maili zapamiętują się po odświeżeniu.
 

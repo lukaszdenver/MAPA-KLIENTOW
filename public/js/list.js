@@ -11,6 +11,7 @@ import { dbBadgeText, dbBadgeClass, resultsCount } from './format.js';
 export async function mountList(el, { onSelect } = {}) {
   let clients = [];
   let favorites = new Set();
+  const pendingFav = new Set(); // id klientów z trwającym żądaniem ulubionego
   let query = '';
   let selectedId = null;
 
@@ -104,6 +105,8 @@ export async function mountList(el, { onSelect } = {}) {
 
   async function toggleFavorite(id) {
     const key = Number(id);
+    if (pendingFav.has(key)) return;
+    pendingFav.add(key);
     const wasFav = favorites.has(key);
     if (wasFav) favorites.delete(key); else favorites.add(key);
     showNotice('');
@@ -114,6 +117,8 @@ export async function mountList(el, { onSelect } = {}) {
       if (wasFav) favorites.add(key); else favorites.delete(key);
       render();
       showNotice(err.message);
+    } finally {
+      pendingFav.delete(key);
     }
   }
 

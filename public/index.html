@@ -126,7 +126,16 @@
 
       // Rekord preferencji (e-mail do powiadomień) przy pierwszym logowaniu.
       const db = await loadModule('/js/db.js');
-      db?.ensurePrefs(user.email).catch((err) => console.warn(err.message));
+      try {
+        await db?.ensurePrefs(user.email);
+      } catch (err) {
+        console.warn(err.message);
+        const warn = document.createElement('div');
+        warn.className = 'alert alert-error';
+        warn.setAttribute('role', 'alert');
+        warn.textContent = `${err.message} Ulubione i powiadomienia mogą nie działać — odśwież stronę.`;
+        $('app').prepend(warn);
+      }
 
       const [listMod, cardMod, aiMod, prefsMod] = await Promise.all([
         loadModule('/js/list.js'),
