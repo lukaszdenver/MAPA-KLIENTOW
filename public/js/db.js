@@ -29,7 +29,8 @@ function fail(error, what) {
   } else if (code === 'PGRST301' || /jwt/i.test(error?.message ?? '')) {
     reason = 'sesja wygasła — zaloguj się ponownie';
   } else {
-    reason = error?.message || 'nieznany błąd';
+    // np. komunikat z save_client (raise exception, kod P0001) — już po polsku
+    reason = (error?.message || 'nieznany błąd').replace(/\.$/, '');
   }
   const err = new Error(`${what}: ${reason}.`);
   err.cause = error;
@@ -89,88 +90,19 @@ export async function getClient(id) {
 }
 
 /**
- * Zapis „zastąp zestaw”.
+ * Zapis „zastąp zestaw” — atomowo, funkcją Postgres `save_client` (supabase/save_client.sql).
  * form = { id?, name, notes,
  *          databases: [{ id?, engine, version, label }],
  *          modules:   [{ module_id, database_refs: (number|string)[], feature_ids: number[] }] }
  * database_refs: id istniejącej bazy (liczba) albo `'new:<i>'` — gdzie i to indeks w form.databases
  * (działa dla nowych baz, które nie mają jeszcze id; dla bazy z id też zwraca jej id).
- * Uwaga: brak transakcji po stronie przeglądarki — przy błędzie w połowie część zmian może zostać zapisana.
+ * Funkcja waliduje odwołania i przy dowolnym błędzie cofa całość (nic nie zostaje zapisane).
  * @returns {Promise<number>} id klienta
  */
 export async function saveClient(form) {
-  const sb = getSupabase();
-  const name = String(form.name ?? '').trim();
-  if (!name) throw new Error('Podaj nazwę klienta.');
-  const notes = String(form.notes ?? '').trim() || null;
-  const what = 'Nie udało się zapisać klienta';
-
-  // 1. Klient
-  let clientId = form.id;
-  if (clientId) {
-    await runOne(sb.from('clients').update({ name, notes, updated_at: new Date().toISOString() }).eq('id', clientId).select('id'), what);
-  } else {
-    const row = await run(sb.from('clients').insert({ name, notes }).select('id').single(), what);
-    clientId = row.id;
-  }
-
-  // 2. Moduły klienta usuwamy najpierw (kaskada usuwa powiązania z bazami i funkcjami).
-  await run(sb.from('client_modules').delete().eq('client_id', clientId), what);
-
-  // 3. Bazy: usuń brakujące, zaktualizuj istniejące, dodaj nowe.
-  const dbs = form.databases ?? [];
-  const existing = await run(sb.from('client_databases').select('id').eq('client_id', clientId), what);
-  const keep = new Set(dbs.filter((d) => d.id).map((d) => Number(d.id)));
-  const toDelete = existing.map((d) => d.id).filter((id) => !keep.has(Number(id)));
-  if (toDelete.length) await run(sb.from('client_databases').delete().in('id', toDelete), what);
-
-  const refIds = []; // indeks w form.databases → id bazy
-  for (const [i, d] of dbs.entries()) {
-    const values = {
-      engine: d.engine,
-      version: String(d.version ?? '').trim(),
-      label: String(d.label ?? '').trim() || null,
-    };
-    if (d.id) {
-      await run(sb.from('client_databases').update(values).eq('id', d.id).eq('client_id', clientId), what);
-      refIds[i] = Number(d.id);
-    } else {
-      const row = await run(sb.from('client_databases').insert({ ...values, client_id: clientId }).select('id').single(), what);
-      refIds[i] = row.id;
-    }
-  }
-  const resolveRef = (ref) => {
-    if (typeof ref === 'string' && ref.startsWith('new:')) {
-      const id = refIds[Number(ref.slice(4))];
-      if (id == null) throw new Error(`${what}: nieprawidłowe odwołanie do bazy (${ref}).`);
-      return id;
-    }
-    return Number(ref);
-  };
-
-  // 4. Moduły i powiązania
-  const mods = form.modules ?? [];
-  if (mods.length) {
-    const inserted = await run(
-      sb.from('client_modules').insert(mods.map((m) => ({ client_id: clientId, module_id: m.module_id }))).select('id, module_id'),
-      what,
-    );
-    const cmId = new Map(inserted.map((r) => [Number(r.module_id), r.id]));
-    const dbLinks = [];
-    const featureLinks = [];
-    for (const m of mods) {
-      const id = cmId.get(Number(m.module_id));
-      for (const ref of new Set((m.database_refs ?? []).map(resolveRef))) {
-        dbLinks.push({ client_module_id: id, client_database_id: ref });
-      }
-      for (const f of new Set((m.feature_ids ?? []).map(Number))) {
-        featureLinks.push({ client_module_id: id, paid_feature_id: f });
-      }
-    }
-    if (dbLinks.length) await run(sb.from('client_module_databases').insert(dbLinks), what);
-    if (featureLinks.length) await run(sb.from('client_module_features').insert(featureLinks), what);
-  }
-  return clientId;
+  if (!String(form?.name ?? '').trim()) throw new Error('Podaj nazwę klienta.');
+  const id = await run(getSupabase().rpc('save_client', { p: form }), 'Nie udało się zapisać klienta');
+  return Number(id);
 }
 
 export async function deleteClient(id) {

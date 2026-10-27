@@ -61,6 +61,28 @@ test('filterClients: „oracle 19c” znajduje tylko klientów z tą wersją', (
   assert.deepEqual(names(filterClients(fixtures, 'oracle 19c')), ['Miasto Łódź Demo', 'Powiat Zeta']);
 });
 
+test('filterClients: „oracle 19c” nie łapie klienta z Oracle 12c + PostgreSQL 19c (słowa w różnych bazach)', () => {
+  const mixed = {
+    id: 14, name: 'Gmina Mieszana', notes: '',
+    databases: [
+      { id: 140, engine: 'oracle', version: '12c', label: null },
+      { id: 141, engine: 'postgres', version: '19c', label: null },
+    ],
+    modules: [],
+  };
+  assert.deepEqual(names(filterClients([...fixtures, mixed], 'oracle 19c')), ['Miasto Łódź Demo', 'Powiat Zeta']);
+  assert.deepEqual(names(filterClients([...fixtures, mixed], 'oracle 12c')), ['Gmina Alfa', 'Gmina Mieszana']);
+});
+
+test('filterClients: słowa w dowolnej kolejności w obrębie jednego pola („demo łódź”, „19c oracle”)', () => {
+  assert.deepEqual(names(filterClients(fixtures, 'demo łódź')), ['Miasto Łódź Demo']);
+  assert.deepEqual(names(filterClients(fixtures, '19c oracle')), ['Miasto Łódź Demo', 'Powiat Zeta']);
+});
+
+test('filterClients: kod i nazwa modułu to jedno pole („plz budżet”)', () => {
+  assert.deepEqual(names(filterClients(fixtures, 'plz budżet')), ['Miasto Łódź Demo', 'Powiat Zeta']);
+});
+
 test('filterClients: „postgresql 15” dopasowuje engine postgres', () => {
   assert.deepEqual(names(filterClients(fixtures, 'postgresql 15')), ['Starostwo Beta']);
 });
