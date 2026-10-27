@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rejestracja — Mapa Klientów</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true">M</span>
+      <span class="brand-name">Mapa Klientów</span>
+    </a>
+  </header>
+
+  <section class="auth">
+    <h1>Załóż konto</h1>
+    <p class="auth-lead">Rejestracja jest możliwa tylko z zaproszenia — otwórz link z e-maila od administratora.</p>
+    <div id="signup" class="auth-widget"><p class="loading" role="status">Ładowanie…</p></div>
+    <p class="muted small">Masz już konto? <a href="/">Zaloguj się</a></p>
+  </section>
+
+  <script type="module">
+    import { initClerk, URLS } from '/js/app-init.js';
+
+    const el = document.getElementById('signup');
+    try {
+      const clerk = await initClerk();
+      if (clerk.user) {
+        location.replace(URLS.home);
+      } else {
+        el.innerHTML = '';
+        // SignUp sam odczytuje __clerk_ticket z adresu (link z zaproszenia).
+        clerk.mountSignUp(el, {
+          signInUrl: URLS.home,
+          forceRedirectUrl: URLS.home,
+          fallbackRedirectUrl: URLS.home,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      el.innerHTML = '';
+      const box = document.createElement('div');
+      box.className = 'alert alert-error';
+      box.setAttribute('role', 'alert');
+      box.textContent = err.message || 'Nie udało się uruchomić rejestracji.';
+      el.append(box);
+    }
+  </script>
+</body>
+</html>
