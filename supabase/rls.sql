@@ -1,6 +1,10 @@
 -- Mapa Klientów — RLS. Identyfikator użytkownika = Clerk `sub` (tekst), rola = claim `app_role`.
 -- Wymaga schema.sql. Brak jakichkolwiek uprawnień i polityk dla `anon`.
 
+-- Supabase domyślnie nadaje anon uprawnienia na tabelach w public — odbieramy jawnie.
+revoke all on clients, client_databases, modules, paid_features, client_modules,
+  client_module_databases, client_module_features, user_prefs, user_favorites from anon;
+
 -- Tabele danych i katalogu: odczyt dla zalogowanych, zapis tylko admin.
 do $$
 declare t text;

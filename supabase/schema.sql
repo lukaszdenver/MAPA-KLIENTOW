@@ -45,6 +45,21 @@ create table client_module_databases (
 );
 create index client_module_databases_db_idx on client_module_databases(client_database_id);
 
+create function check_module_db_same_client() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if (select client_id from client_modules where id = new.client_module_id)
+     is distinct from
+     (select client_id from client_databases where id = new.client_database_id) then
+    raise exception 'Baza nie należy do tego klienta';
+  end if;
+  return new;
+end $$;
+
+create trigger client_module_databases_same_client
+  before insert or update on client_module_databases
+  for each row execute function check_module_db_same_client();
+
 create table client_module_features (
   client_module_id bigint not null references client_modules(id) on delete cascade,
   paid_feature_id  bigint not null references paid_features(id) on delete cascade,

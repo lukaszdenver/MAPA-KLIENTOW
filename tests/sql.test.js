@@ -16,6 +16,8 @@ before(async () => {
     grant usage on schema public to authenticated, anon;
   `);
   await db.exec(sql('schema.sql'));
+  // Symulacja domyślnych uprawnień Supabase: anon ma dostęp do tabel w public.
+  await db.exec('grant all on all tables in schema public to anon');
   await db.exec(sql('rls.sql'));
   await db.exec(sql('seed.sql'));
 });
@@ -64,6 +66,14 @@ test('anon nic nie widzi', async () => {
   let n = 0;
   try { n = await count('clients'); } catch (e) { assert.match(e.message, /permission denied/i); return; }
   assert.equal(n, 0);
+});
+
+test('moduł nie może wskazywać bazy innego klienta', async () => {
+  const cm = (await db.query(`select cm.id from client_modules cm join clients c on c.id=cm.client_id where c.name='Gmina Fikcyjna' limit 1`)).rows[0];
+  const other = (await db.query(`select d.id from client_databases d join clients c on c.id=d.client_id where c.name='Powiat Wzorcowy' limit 1`)).rows[0];
+  await assert.rejects(
+    db.query('insert into client_module_databases values ($1,$2)', [cm.id, other.id]),
+    /Baza nie należy do tego klienta/);
 });
 
 test('usunięcie bazy usuwa powiązanie, nie moduł', async () => {
