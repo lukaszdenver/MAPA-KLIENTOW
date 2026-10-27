@@ -1,0 +1,15 @@
+/* Karta klienta */
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.card-titles { min-width: 0; flex: 1 1 240px; }
+.card-titles h2 { font-size: 1.4rem; overflow-wrap: anywhere; }
+.card-notes { margin: 0; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.client-card > .card-actions { margin-bottom: 8px; }
+.module-list, .feature-list { list-style: none; margin: 0; padding: 0; }
+.module { padding: 10px 0; }
+.module + .module { border-top: 1px solid var(--line); }
+.module-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.module-code { font-weight: 500; color: var(--accent); min-width: 4.5em; }
+.module-name { font-weight: 500; }
+.module .badges { margin-left: auto; }
+.feature-list { margin-top: 2px; padding-left: 4px; }
+.feature-list li::before { content: "• "; color: var(--accent); }

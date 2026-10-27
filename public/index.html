@@ -9,6 +9,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
   <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/list.css">
+  <link rel="stylesheet" href="/css/card.css">
+  <link rel="stylesheet" href="/css/form.css">
+  <link rel="stylesheet" href="/css/ai.css">
 </head>
 <body>
   <header class="app-header">
@@ -131,13 +135,22 @@
         loadModule('/js/prefs.js'),
       ]);
 
-      // mountCard(el) → { showClient(id) }; mountList(el, { onSelect }); mountAi(el); mountPrefs(el).
+      // mountCard(el, { onSaved, onDeleted }) → { showClient(id), showEmpty() };
+      // mountList(el, { onSelect }) → { refresh(), select(id) }; mountAi(el); mountPrefs(el).
       const cardEl = $('card');
-      const card = await safeMount(cardEl, () => cardMod?.mountCard?.(cardEl));
+      let list = null;
+      const card = await safeMount(cardEl, () => cardMod?.mountCard?.(cardEl, {
+        // Po zapisie w formularzu: odśwież listę i pokaż kartę (select → onSelect → showClient).
+        onSaved: async (id) => {
+          await list?.refresh();
+          if (list) list.select(id); else card?.showClient?.(id);
+        },
+        onDeleted: () => list?.refresh(),
+      }));
       if (!card) placeholder(cardEl, 'Wybierz klienta z listy.');
 
       const listEl = $('list');
-      await safeMount(listEl, () => listMod?.mountList?.(listEl, { onSelect: (id) => card?.showClient?.(id) }));
+      list = await safeMount(listEl, () => listMod?.mountList?.(listEl, { onSelect: (id) => card?.showClient?.(id) }));
       if (!listMod?.mountList) placeholder(listEl, 'Lista klientów będzie dostępna wkrótce.');
 
       const aiEl = $('ai');
